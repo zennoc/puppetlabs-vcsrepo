@@ -4,21 +4,21 @@ Puppet::Type.type(:vcsrepo).provide(:git, :parent => Puppet::Provider::Vcsrepo) 
   desc "Supports Git repositories"
 
   ##TODO modify the commands below so that the su - is included
-  optional_commands :git => 'git',
-                    :su  => 'su'
+  commands :git => 'git'
+  optional_commands :su  => 'su'
+
   has_features :bare_repositories, :reference_tracking, :ssh_identity, :multiple_remotes, :user, :depth
 
   def create
+    if @resource.value(:revision) and @resource.value(:ensure) == :bare
+      fail("Cannot set a revision (#{@resource.value(:revision)}) on a bare repository")
+    end
     if !@resource.value(:source)
       init_repository(@resource.value(:path))
     else
       clone_repository(@resource.value(:source), @resource.value(:path))
       if @resource.value(:revision)
-        if @resource.value(:ensure) == :bare
-          notice "Ignoring revision for bare repository"
-        else
-          checkout
-        end
+        checkout
       end
       if @resource.value(:ensure) != :bare
         update_submodules
@@ -79,12 +79,18 @@ Puppet::Type.type(:vcsrepo).provide(:git, :parent => Puppet::Provider::Vcsrepo) 
 
   def revision=(desired)
     checkout(desired)
-    if local_branch_revision?(desired)
+    if local_branch_revision?
       # reset instead of pull to avoid merge conflicts. assuming remote is
       # authoritative.
       # might be worthwhile to have an allow_local_changes param to decide
       # whether to reset or pull when we're ensuring latest.
-      at_path { git_with_identity('reset', '--hard', "#{@resource.value(:remote)}/#{desired}") }
+      at_path {
+        git_with_identity('reset', '--hard', "#{@resource.value(:remote)}/#{desired}")
+        if detached?
+          git_with_identity('checkout', "#{@resource.value(:revision)}")
+          git_with_identity('pull')
+        end
+      }
     end
     if @resource.value(:ensure) != :bare
       update_submodules
@@ -140,7 +146,7 @@ Puppet::Type.type(:vcsrepo).provide(:git, :parent => Puppet::Provider::Vcsrepo) 
     if @resource.value(:remote) != 'origin'
       args.push('--origin', @resource.value(:remote))
     end
-    if !File.exist?(File.join(@resource.value(:path), '.git'))
+    if !working_copy_exists?
       args.push(source, path)
       Dir.chdir("/") do
         git_with_identity(*args)
@@ -259,7 +265,16 @@ Puppet::Type.type(:vcsrepo).provide(:git, :parent => Puppet::Provider::Vcsrepo) 
   end
 
   def on_branch?
-    at_path { git_with_identity('rev-parse', '--abbrev-ref', 'HEAD').chomp }
+    at_path {
+      matches = git_with_identity('branch', '-a').match /\*\s+(.*)/
+      matches[1] unless matches[1].match /detached/
+    }
+  end
+
+  def detached?
+    at_path {
+      git_with_identity('branch', '-a').match /\*\s+\(detached from.*\)/
+    }
   end
 
   def tags
@@ -271,6 +286,9 @@ Puppet::Type.type(:vcsrepo).provide(:git, :parent => Puppet::Provider::Vcsrepo) 
   end
 
   def get_revision(rev)
+    if @resource.value(:force) && working_copy_exists?
+      create
+    end
     if !working_copy_exists?
       create
     end
