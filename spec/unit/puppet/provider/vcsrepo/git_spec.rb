@@ -134,7 +134,7 @@ branches
         it "should raise an exception" do
           provider.expects(:path_exists?).returns(true)
           provider.expects(:path_empty?).returns(false)
-          proc { provider.create }.should raise_error(Puppet::Error)
+          expect { provider.create }.to raise_error(Puppet::Error)
         end
       end
     end
@@ -175,28 +175,6 @@ branches
         provider.expects(:git).with('checkout', '--force', resource.value(:revision))
         provider.create
       end
-      it "should warn about destroying it using force and noop attribute" do
-        resource[:force] = true
-        resource[:noop] = true
-        resource.delete(:revision)
-        provider.expects(:working_copy_exists?).returns(true)
-
-        provider.expects(:destroy).never
-        provider.expects(:create).never
-        Puppet::Type::Vcsrepo::Ensure.any_instance.expects(:send_log).with(:notice, "Noop Mode - Would have deleted repository and re-created from latest")
-        provider.resource.retrieve
-      end
-      it "should warn about destroying it using force and global noop" do
-        resource[:force] = true
-        Puppet[:noop] = true
-        resource.delete(:revision)
-        provider.expects(:working_copy_exists?).returns(true)
-
-        provider.expects(:destroy).never
-        provider.expects(:create).never
-        Puppet::Type::Vcsrepo::Ensure.any_instance.expects(:send_log).with(:notice, "Noop Mode - Would have deleted repository and re-created from latest")
-        provider.resource.retrieve
-      end
     end
 
     context "when the path is not empty and not a repository" do
@@ -204,7 +182,7 @@ branches
         provider.expects(:path_exists?).returns(true)
         provider.expects(:path_empty?).returns(false)
         provider.expects(:working_copy_exists?).returns(false)
-        proc { provider.create }.should raise_error(Puppet::Error)
+        expect { provider.create }.to raise_error(Puppet::Error)
       end
     end
   end
@@ -233,14 +211,14 @@ branches
     context "when its SHA is not different than the current SHA" do
       it "should return the ref" do
         provider.expects(:git).with('rev-parse', resource.value(:revision)).returns('currentsha')
-        provider.revision.should == resource.value(:revision)
+        expect(provider.revision).to eq(resource.value(:revision))
       end
     end
 
     context "when its SHA is different than the current SHA" do
       it "should return the current SHA" do
         provider.expects(:git).with('rev-parse', resource.value(:revision)).returns('othersha')
-        provider.revision.should == resource.value(:revision)
+        expect(provider.revision).to eq(resource.value(:revision))
       end
     end
 
@@ -248,7 +226,7 @@ branches
       it "should return the revision" do
         provider.stubs(:git).with('branch', '-a').returns("  remotes/origin/#{resource.value(:revision)}")
         provider.expects(:git).with('rev-parse', "origin/#{resource.value(:revision)}").returns("newsha")
-        provider.revision.should == resource.value(:revision)
+        expect(provider.revision).to eq(resource.value(:revision))
       end
     end
 
@@ -267,7 +245,7 @@ branches
         provider.expects(:git).with('config', 'remote.origin.url').returns('old')
         provider.expects(:git).with('config', 'remote.origin.url', 'git://git@foo.com/bar.git')
         provider.expects(:git).with('rev-parse', resource.value(:revision)).returns('currentsha')
-        provider.revision.should == resource.value(:revision)
+        expect(provider.revision).to eq(resource.value(:revision))
       end
     end
   end
@@ -320,54 +298,19 @@ branches
     end
   end
 
-  context "checking if revision" do
-    before do
-      expects_chdir
-      provider.expects(:git).with('branch', '-a').returns(fixture(:git_branch_a))
-    end
-    context "is a local branch" do
-      context "when it's listed in 'git branch -a'" do
-        it "should return true" do
-          resource[:revision] = 'feature/foo'
-          provider.should be_local_branch_revision
-        end
-      end
-      context "when it's not listed in 'git branch -a'" do
-        it "should return false" do
-          resource[:revision] = 'feature/notexist'
-          provider.should_not be_local_branch_revision
-        end
-      end
-    end
-    context "is a remote branch" do
-      context "when it's listed in 'git branch -a' with an 'origin/' prefix" do
-        it "should return true" do
-          resource[:revision] = 'only/remote'
-          provider.should be_remote_branch_revision
-        end
-      end
-      context "when it's not listed in 'git branch -a' with an 'origin/' prefix" do
-        it "should return false" do
-          resource[:revision] = 'only/local'
-          provider.should_not be_remote_branch_revision
-        end
-      end
-    end
-  end
-
   describe 'latest?' do
     context 'when true' do
       it do
         provider.expects(:revision).returns('testrev')
         provider.expects(:latest_revision).returns('testrev')
-        provider.latest?.should be_true
+        expect(provider.latest?).to be_truthy
       end
     end
     context 'when false' do
       it do
         provider.expects(:revision).returns('master')
         provider.expects(:latest_revision).returns('testrev')
-        provider.latest?.should be_false
+        expect(provider.latest?).to be_falsey
       end
     end
   end

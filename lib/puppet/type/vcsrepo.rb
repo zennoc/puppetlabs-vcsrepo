@@ -43,6 +43,9 @@ Puppet::Type.newtype(:vcsrepo) do
   feature :p4config,
           "The provider understands Perforce Configuration"
 
+  feature :submodules,
+          "The repository contains submodules which can be optionally initialized"
+
   ensurable do
     attr_accessor :latest
 
@@ -100,16 +103,6 @@ Puppet::Type.newtype(:vcsrepo) do
       prov = @resource.provider
       if prov
         if prov.working_copy_exists?
-          if @resource.value(:force)
-            if noop
-              notice "Noop Mode - Would have deleted repository and re-created from latest"
-            else
-              notice "Deleting current repository before recloning"
-              prov.destroy
-              notice "Create repository from latest"
-              prov.create
-            end
-          end
           (@should.include?(:latest) && prov.latest?) ? :latest : :present
         elsif prov.class.feature?(:bare_repositories) and prov.bare_exists?
           :bare
@@ -217,6 +210,12 @@ Puppet::Type.newtype(:vcsrepo) do
 
   newparam :p4config, :required_features => [:p4config] do
     desc "The Perforce P4CONFIG environment."
+  end
+
+  newparam :submodules, :required_features => [:submodules] do
+    desc "Initialize and update each submodule in the repository."
+    newvalues(:true, :false)
+    defaultto true
   end
 
   autorequire(:package) do

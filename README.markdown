@@ -41,6 +41,10 @@ This module provides a single type with providers for each VCS, which can be use
 
 ##Setup
 
+Before you begin using vcsrepo, it's worth keeping in mind that this module will not install VCS software for you. If you are going to use this module, you must have already installed your preferred VCS.
+
+Also, this module, like Puppet generally, will not create parent directories for you. You will need to have your parent directories in place before you begin.
+
 ###Beginning with vcsrepo	
 
 To get started with the vcsrepo module, you must simply define the type `vcsrepo` with a path to your repository and the [type of VCS](#Usage) you're using in `provider` (in the below example, Git). 
@@ -139,6 +143,15 @@ To keep the repository at the latest revision (**WARNING:** this will always ove
       provider => git,
       source   => 'git://example.com/repo.git',
       revision => 'master',
+    }
+
+To clone the repository but skip initialiazing submodules,
+
+    vcsrepo { "/path/to/repo":
+      ensure     => latest,
+      provider   => git,
+      source     => 'git://example.com/repo.git',
+      submodules => false,
     }
 
 #####Sources that use SSH
@@ -456,7 +469,7 @@ The vcsrepo module is slightly unusual in that it is simply a type and providers
 
 * `git`   - Supports the Git VCS. (Contains features: `bare_repositories`, `depth`, `multiple_remotes`, `reference_tracking`, `ssh_identity`, `user`.)
 * `bar`   - Supports the Bazaar VCS. (Contains features: `reference_tracking`.)
-* `cvs`   - Supports the CVS VCS. (Contains features: `cvs_rsh`, `gzip_compression`, `modules`,`reference_tracking`.)
+* `cvs`   - Supports the CVS VCS. (Contains features: `cvs_rsh`, `gzip_compression`, `modules`, `reference_tracking`, `user`.)
 * `dummy` - 
 * `hg`    - Supports the Mercurial VCS. (Contains features: `reference_tracking`, `ssh_identity`, `user`.)
 * `p4`    - Supports the Perforce VCS. (Contains features: `reference_tracking`, `filesystem_types`, `p4config`.)
@@ -477,8 +490,9 @@ The vcsrepo module is slightly unusual in that it is simply a type and providers
 * `multiple_remotes` - The repository tracks multiple remote repositories. (Available with `git`.)
 * `reference_tracking` - The provider supports tracking revision references that can change over time (e.g. some VCS tags and branch names). (Available with `bar`, `cvs`, `git`, `hg`, `svn`.)
 * `ssh_identity` - The provider supports a configurable SSH identity file. (Available with `git` and `hg`.)
-* `user` - The provider can run as a different user. (Available with `git` and `hg`.)
+* `user` - The provider can run as a different user. (Available with `git`, `hg` and `cvs`.)
 * `p4config` - The provider support setting the P4CONFIG environment. (Available with `p4`.)
+* `submodules` - The provider supports repository submodules which can be optionally initialized. (Available with `git`.)
 
 ####Parameters
 
@@ -489,7 +503,7 @@ The vcsrepo module is slightly unusual in that it is simply a type and providers
 * `cvs_rsh` -  The value to be used for the CVS_RSH environment variable. (Requires the `cvs_rsh` feature.)
 * `depth` - The value to be used to do a shallow clone. (Requires the `depth` feature.)
 * `ensure` - Determines the state of the repository. Valid values are 'present', 'bare', 'absent', 'latest'.
-* `excludes` - Lists any files to be excluded from the repository.
+* `excludes` - Lists any files to be excluded from the repository. Can be an array or string.
 * `force` - Forces repository creation. Valid values are 'true' and 'false'. **WARNING** Forcing will destroy any files in the path.
 * `fstype` - Sets the filesystem type. (Requires the `filesystem_types` feature.)
 * `group` - Determines the group/gid that owns the repository files.
@@ -507,9 +521,9 @@ The vcsrepo module is slightly unusual in that it is simply a type and providers
 ####Features and Parameters by Provider
 
 #####`git`
-**Features**: `bare_repositories`, `depth`, `multiple_remotes`, `reference_tracking`, `ssh_identity`, `user`
+**Features**: `bare_repositories`, `depth`, `multiple_remotes`, `reference_tracking`, `ssh_identity`, `user`, `submodules`
 
-**Parameters**: `depth`, `ensure`, `excludes`, `force`, `group`, `identity`, `owner`, `path`, `provider`, `remote`, `revision`, `source`, `user`
+**Parameters**: `depth`, `ensure`, `excludes`, `force`, `group`, `identity`, `owner`, `path`, `provider`, `remote`, `revision`, `source`, `user`, `submodules`
 
 #####`bzr`
 **Features**: `reference_tracking`
